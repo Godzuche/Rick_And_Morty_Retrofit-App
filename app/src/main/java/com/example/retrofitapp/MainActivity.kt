@@ -1,17 +1,12 @@
 package com.example.retrofitapp
 
 import android.os.Bundle
-import android.util.Log
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
+import androidx.lifecycle.ViewModelProvider
+import com.squareup.picasso.Picasso
 
 
 class MainActivity : AppCompatActivity() {
@@ -19,33 +14,34 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val textView = findViewById<TextView>(R.id.textView)
+        val viewModel: SharedViewModel by lazy {
+            ViewModelProvider(this).get(SharedViewModel::class.java)
+        }
+        val nameTextView = findViewById<TextView>(R.id.nameTextView)
+        val headerImageView = findViewById<ImageView>(R.id.headerImageView)
+        val statusTextView = findViewById<TextView>(R.id.statusTextView)
+        val specieTextView = findViewById<TextView>(R.id.specieTextView)
+        val statusIcon = findViewById<ImageView>(R.id.statusIcon)
 
-        val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://rickandmortyapi.com/api/")
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
+        viewModel.refreshCharacter(54)
+       viewModel.characterByIdLiveData.observe(this) { response->
+           if(response == null) {
+               Toast.makeText(this@MainActivity, "Unsuccessful network call!", Toast.LENGTH_SHORT).show()
+               return@observe
+           }
 
-        val rickAndMortyService: RickAndMortyService = retrofit.create(RickAndMortyService::class.java)
-        rickAndMortyService.getCharacterById(10).enqueue(object: Callback<GetCharacterByIdResponse>{
-            override fun onResponse(call: Call<GetCharacterByIdResponse>, response: Response<GetCharacterByIdResponse>) {
-                Log.i("MainActivity", response.toString())
-                if(!response.isSuccessful) {
-                    Toast.makeText(this@MainActivity, "Unsuccessful network call!", Toast.LENGTH_SHORT).show()
-                    return
-                }
+           nameTextView.text = response.name
+           statusTextView.text = response.status
+           specieTextView.text = response.species
 
-                val body = response.body()!!
-                val name = body.name
-                textView.text = name
-            }
+           if(response.status.equals("alive", true)) {
+               statusIcon.setImageResource(R.drawable.ic_baseline_check_circle_24)
+           } else {
+               statusIcon.setImageResource(R.drawable.ic_baseline_check_circle__dead)
+           }
 
-            override fun onFailure(call: Call<GetCharacterByIdResponse>, t: Throwable) {
-                Log.i("MainActivity", t.message?: "Null message")
-            }
-        })
-
+           Picasso.get().load(response.image).into(headerImageView)
+       }
 
     }
 }
